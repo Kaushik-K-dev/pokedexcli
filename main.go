@@ -1,8 +1,14 @@
 package main
 
-import ("fmt"; "bufio"; "os"; "strings")
+import ("fmt"; "bufio"; "os"; "strings"; "time")
 
 func main() {
+	cache := newCache(5 * time.Minute)
+	cfg :=  &config{
+		cache: cache,
+		prevURL: nil,
+		nextURL: nil,
+	}
 	fmt.Println("Pokemon started. Enter command.")
 	scanner := bufio.NewScanner(os.Stdin)
     for {
@@ -19,6 +25,6 @@ func main() {
 			fmt.Println("Invalid Command. Use 'help' to see all available commands.")
 			continue
 		}
-		command.callback()
+		command.callback(cfg)
     }
 }
