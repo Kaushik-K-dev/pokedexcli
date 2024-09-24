@@ -6,8 +6,6 @@ func main() {
 	cache := newCache(5 * time.Minute)
 	cfg :=  &config{
 		cache: cache,
-		prevURL: nil,
-		nextURL: nil,
 	}
 	fmt.Println("Pokemon started. Enter command.")
 	scanner := bufio.NewScanner(os.Stdin)
@@ -18,13 +16,16 @@ func main() {
 		cmd := scanner.Text()
 		cmd = strings.ToLower(strings.TrimSpace(cmd))
 		if cmd == "" {continue}
+
+		cmdslice := strings.Fields(cmd)
 		
 		commandList := commandList()
-		command, ok := commandList[cmd]
+		command, ok := commandList[cmdslice[0]]
 		if !ok {
 			fmt.Println("Invalid Command. Use 'help' to see all available commands.")
 			continue
 		}
-		command.callback(cfg)
+		args := cmdslice[1:]
+		command.callback(cfg, args...)
     }
 }
