@@ -245,12 +245,11 @@ func commandInspect(cfg *config, args ...string) {
 	typeline := "Type(s): "+Pkm.Types[0]
 	if len(Pkm.Types) > 1 {typeline += " "+Pkm.Types[1]}
 	fmt.Println(typeline)
-	fmt.Println("Moves:", Pkm.Moves)
-	fmt.Println("Base Stats (EVs):")
+	fmt.Println("\nBase Stats (EVs):")
 	for _, stat := range Pkm.Stats {
 		fmt.Println(strings.Title(stat))
 	}
-	fmt.Println("Moves: ")
+	fmt.Println("\nMoves: ")
 	for _, move := range Pkm.Moves {
 		fmt.Println("- "+strings.Title(move))
 	}
