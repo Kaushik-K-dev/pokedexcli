@@ -192,7 +192,17 @@ func commandCatch(cfg *config, args ...string) {
 		shinytext = "a Shiny "
 	} else {Pkm.Is_shiny = false}
 	Pkm.NatDexIndex = resp.ID
-	DexEntry := resp.FlavorTextEntries[0].FlavorText
+	DexEntry := ""
+	var enEntries []string //remove to non-randomize at pick first en entry instead.
+	for _, entry := range resp.FlavorTextEntries {
+		if entry.Language.Name == "en" {
+			enEntries = append(enEntries, entry.FlavorText)// remove to...,,,...
+			///DexEntry = entry.FlavorText
+			///break
+			/// add to...,,,...
+		}
+	}
+	DexEntry = enEntries[rand.Intn(len(enEntries))]///remove to...,,,...
 	DexEntry = strings.ReplaceAll(DexEntry, "\n", " ")
 	DexEntry = strings.ReplaceAll(DexEntry, "\f", " ")
 
