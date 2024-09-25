@@ -1,5 +1,10 @@
 package main
 
+import ("net/http"; "encoding/json"; "fmt")
+
+var PokemonURL = "https://pokeapi.co/api/v2/pokemon/"
+var PokemonCatchURL = "https://pokeapi.co/api/v2/pokemon-species/" //For catchrate
+
 type PokemonData struct {
 	Abilities []struct {
 		Ability struct {
@@ -367,25 +372,64 @@ type PokemonSpecies struct {
 
 type Pokemon struct {
 	Name string `json:"name"`
-	Ability string `json:"ability"`
 	Gender string `json:"gender"`
-	Height    int `json:"height"`
+	Ability string `json:"ability"`
+	HeldItem string `json:"held_item"`
+	Height int `json:"height"`
 	Weight int `json:"weight"`
-	Types []struct {
-		Type struct {
-			Name string `json:"name"`
-		} `json:"type"`
-	} `json:"types"`
-	Stats []struct {
-		BaseStat int `json:"base_stat"`
-		Stat     struct {
-			Name string `json:"name"`
-		} `json:"stat"`
-	} `json:"stats"`
-	Moves []struct {
-		Move struct {
-			Name string `json:"name"`
-		}
-	} `json:"moves"`
+	Types []string `json:"types"`
+	Stats []string `json:"stats"`
+	Moves []string `json:"moves"`
 	Is_shiny bool `json:"is_shiny"`
+	NatDexIndex int `json:"nat_dex_index"`
+	Dex_entry string `json:"dex_entry"`
+}
+
+func (cfg *config) PokemonCatch(PokemonName string) (*PokemonSpecies, *PokemonData, error) {
+	url := PokemonCatchURL + PokemonName
+	url2:= PokemonURL + PokemonName
+
+	var pokemonSpec PokemonSpecies
+	var pokemonData PokemonData
+	
+	fetchFromCacheOrAPI := func(url string, result interface{}) error {
+        dat, ok := cfg.cache.Get(url)
+        if ok {
+            val, ok := dat.(interface{})
+            if !ok {
+                return fmt.Errorf("cache entry is not of the expected type")
+            }//Type Assertion time
+            switch v := val.(type) {
+            case *PokemonSpecies:
+                *result.(*PokemonSpecies) = *v
+            case *PokemonData:
+                *result.(*PokemonData) = *v
+            default:
+                return fmt.Errorf("cache entry is not of the expected type")
+            }
+        } else {
+            req, err := http.NewRequest("GET", url, nil)
+            if err != nil {return err}
+            resp, err := http.DefaultClient.Do(req)
+            if err != nil {return err}
+            defer resp.Body.Close()
+
+            err = json.NewDecoder(resp.Body).Decode(result)
+			if err != nil {return err}
+        }
+        return nil
+    }
+
+	if err := fetchFromCacheOrAPI(url, &pokemonSpec); err != nil {
+        return nil, nil, err
+    }
+
+    if err := fetchFromCacheOrAPI(url2, &pokemonData); err != nil {
+        return nil, nil, err
+    }
+
+	cfg.cache.Add(url, &pokemonSpec)
+	cfg.cache.Add(url2, &pokemonData)
+
+	return &pokemonSpec, &pokemonData, nil
 }

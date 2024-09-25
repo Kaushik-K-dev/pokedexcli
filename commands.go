@@ -1,6 +1,6 @@
 package main
 
-import ("fmt";"os"; "strconv")
+import ("fmt";"os"; "strconv"; "math/rand"; "strings")
 
 type cliCommand struct {
 	name        string
@@ -12,6 +12,7 @@ type config struct {
 	prevURL *string
 	nextURL *string
 	cache    *Cache
+	PokeCollection map[string]Pokemon
 }
 
 func commandList() map[string]cliCommand {
@@ -40,6 +41,26 @@ func commandList() map[string]cliCommand {
         	name:        "explore",
         	description: "Shows the Pokemon in specified Area.",
         	callback:    commandExplore,
+    	},
+		"catch": {
+        	name:        "catch",
+        	description: "Attempt to catch specified Pokemon.",
+        	callback:    commandCatch,
+    	},
+		"inspect": {
+        	name:        "inspect",
+        	description: "Inspect a caught Pokemon. Fails if you have not caught it yet.",
+        	callback:    commandInspect,
+    	},
+		"list": {
+        	name:        "list",
+        	description: "Shows your collection of caught Pokemon.",
+        	callback:    commandPokeList,
+    	},
+		"release": {
+        	name:        "release",
+        	description: "Releases specified Pokemon. Use release all to clear the Pokedex.",
+        	callback:    commandRelease,
     	},
 	}
 }
@@ -103,4 +124,135 @@ func commandExplore(cfg *config, args ...string) {
 	} else {
 		fmt.Println("No Area Name or incorrect Name provided. (Please check if you have typed the exact name. There should be hyphens instead of spaces.)")
 	}
+}
+
+func commandCatch(cfg *config, args ...string) {
+	if len(args[0]) == 0 {fmt.Println("Please enter a Pokemon name to catch.")}
+
+	if _, ok := cfg.PokeCollection[args[0]]; ok {
+		fmt.Println("You have already caught "+args[0]+"!")
+		return
+	}
+	ballmult := 1.0
+	if len(args) > 1 {
+		switch strings.ToLower(args[1]){
+		case "great": ballmult = 1.5
+		case "ultra": ballmult = 2.0
+		case "master": ballmult = 255.0
+		case "poke":
+		default: fmt.Println("Invalid Pokeball type. Using standard Pokeball")
+				args[1] = "poke"
+		}
+		args[1] = strings.Title(args[1])
+		fmt.Println("Throwing a "+args[1]+"ball at "+args[0]+"...")
+	} else {
+	fmt.Println("Throwing a Pokeball at "+args[0]+"...")
+	}
+
+	resp, resp2, err := cfg.PokemonCatch(args[0])
+	if err!=nil {fmt.Errorf("err")}
+
+	catchRate := resp.CaptureRate * int(ballmult)
+	if rand.Intn(256) > catchRate {
+		fmt.Println(args[0]+" escaped!")
+		return
+	}
+	var Pkm Pokemon
+	Pkm.Name = args[0]
+	Pkm.Ability = strings.Title(resp2.Abilities[rand.Intn(len(resp2.Abilities))].Ability.Name)
+	if resp.GenderRate == -1 {
+		Pkm.Gender = ""
+	} else if rand.Intn(8) < resp.GenderRate {
+		Pkm.Gender = "(\u2640)"
+	} else {Pkm.Gender = "(\u2642)"}
+	Pkm.Height = resp2.Height
+	Pkm.Weight = resp2.Weight
+	if len(resp2.HeldItems) != 0 {
+	Pkm.HeldItem = strings.Title(resp2.HeldItems[rand.Intn(len(resp2.HeldItems))].Item.Name)
+	} else {Pkm.HeldItem = "None"}
+	Pkm.Types = make([]string, 0)
+	for _, typ := range resp2.Types {
+		Pkm.Types = append(Pkm.Types, strings.Title(typ.Type.Name))
+	}
+
+	Pkm.Stats = make([]string, 0)
+	for _, stat := range resp2.Stats {
+		statstr := stat.Stat.Name + ": " + strconv.Itoa(stat.BaseStat)+ " (" + strconv.Itoa(rand.Intn(32)) +")"
+		Pkm.Stats = append(Pkm.Stats, statstr)
+	}
+
+	Pkm.Moves = make([]string, 0)
+	for i:=0; i < min(4, len(resp2.Moves)); i++ {
+		Pkm.Moves = append(Pkm.Moves, resp2.Moves[i].Move.Name)
+	}
+
+	shinytext := ""
+	if rand.Intn(4096) == 0 {
+		Pkm.Is_shiny = true
+		shinytext = "a Shiny "
+	} else {Pkm.Is_shiny = false}
+	Pkm.NatDexIndex = resp.ID
+	DexEntry := resp.FlavorTextEntries[0].FlavorText
+	DexEntry = strings.ReplaceAll(DexEntry, "\n", " ")
+	DexEntry = strings.ReplaceAll(DexEntry, "\f", " ")
+
+	Pkm.Dex_entry = DexEntry
+
+	cfg.PokeCollection[args[0]] = Pkm
+
+	fmt.Println("You caught "+shinytext+args[0]+"!")
+}
+
+func commandPokeList(cfg *config, args ...string) {
+	if len(cfg.PokeCollection) == 0{
+		fmt.Println("You don't have any Pokemon.")
+		return
+	}
+	for _, pokemon := range cfg.PokeCollection {
+		fmt.Println("- " + pokemon.Name)
+	}
+}
+
+func commandRelease(cfg *config, args ...string) {
+	if args[0] == "all" {
+		cfg.PokeCollection = make(map[string]Pokemon)
+		fmt.Println("All Pokemon have been released!")
+		return
+	}
+	if _, ok := cfg.PokeCollection[args[0]]; ok {
+		delete(cfg.PokeCollection, args[0])
+		fmt.Println("You have released "+args[0]+"!")
+		return
+	}
+	fmt.Println("You do not have that in your collection. Please check if you have entered the name correctly.")
+}
+
+func commandInspect(cfg *config, args ...string) {
+	if len(args[0]) == 0 {fmt.Println("Please enter a Pokemon name in your collection.")}
+
+	Pkm, ok := cfg.PokeCollection[args[0]]
+	if !ok {
+		fmt.Println("You do not have that in your collection!")
+		return
+	}
+	shinytext := ""
+	if Pkm.Is_shiny {shinytext += " (Shiny!!)"}
+	fmt.Println("Name: "+strings.Title(Pkm.Name)+Pkm.Gender+shinytext)
+	fmt.Println("Ability: "+Pkm.Ability)
+	fmt.Println("Held Item: "+Pkm.HeldItem)
+	fmt.Println("Height: "+strconv.Itoa(Pkm.Height))
+	fmt.Println("Weight: "+strconv.Itoa(Pkm.Weight))
+	typeline := "Type(s): "+Pkm.Types[0]
+	if len(Pkm.Types) > 1 {typeline += " "+Pkm.Types[1]}
+	fmt.Println(typeline)
+	fmt.Println("Moves:", Pkm.Moves)
+	fmt.Println("Base Stats (EVs):")
+	for _, stat := range Pkm.Stats {
+		fmt.Println(strings.Title(stat))
+	}
+	fmt.Println("Moves: ")
+	for _, move := range Pkm.Moves {
+		fmt.Println("- "+strings.Title(move))
+	}
+	fmt.Println("\nEntry No. "+strconv.Itoa(Pkm.NatDexIndex)+":\n"+Pkm.Dex_entry)
 }

@@ -4,7 +4,7 @@ import ("time"; "sync")
 
 type Cache struct {
 	cache map[string]cacheEntry
-	mu    sync.Mutex
+	mu    *sync.Mutex
 	interval time.Duration
 }
 type cacheEntry struct {
@@ -15,6 +15,7 @@ type cacheEntry struct {
 func newCache(interval time.Duration) *Cache {
 	cache:= &Cache{
 		cache : make(map[string]cacheEntry),
+        mu: &sync.Mutex{},
 		interval: interval,
 	}
 	

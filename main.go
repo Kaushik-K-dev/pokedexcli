@@ -6,8 +6,9 @@ func main() {
 	cache := newCache(5 * time.Minute)
 	cfg :=  &config{
 		cache: cache,
+		PokeCollection: make(map[string]Pokemon),
 	}
-	fmt.Println("Pokemon started. Enter command.")
+	fmt.Println("Pokedex started. Enter command.")
 	scanner := bufio.NewScanner(os.Stdin)
     for {
         fmt.Print("pokedex > ")
